@@ -1,17 +1,16 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout } from './components/Layout.tsx';
-import { Auth } from './components/Auth.tsx';
-import { Settings } from './components/Settings.tsx';
-import { Dashboard } from './components/Dashboard.tsx';
-import { News } from './components/News.tsx';
-import { CoursePlayer } from './components/CoursePlayer.tsx';
-import { TerminalAlpha } from './components/Terminal.tsx';
-import { Pricing } from './components/Pricing.tsx';
-import { Page, PlanType, User, Module } from './types.ts';
-import { MODULES } from './constants.tsx';
-import { CompoundInterestSimulator } from './components/Simulators.tsx';
-import { supabase } from './services/supabase.ts';
+import { Layout } from './components/Layout';
+import { Auth } from './components/Auth';
+import { Settings } from './components/Settings';
+import { Dashboard } from './components/Dashboard';
+import { News } from './components/News';
+import { CoursePlayer } from './components/CoursePlayer';
+import { TerminalAlpha } from './components/Terminal';
+import { Pricing } from './components/Pricing';
+import { Page, PlanType, User, Module } from './types';
+import { MODULES } from './constants';
+import { CompoundInterestSimulator } from './components/Simulators';
+import { supabase } from './services/supabase';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('landing');
@@ -38,7 +37,6 @@ const App: React.FC = () => {
     localStorage.setItem('moneylab-theme', theme);
   }, [theme]);
 
-  // FUNÇÃO DE PERSISTÊNCIA: Sincroniza o estado local com o Supabase
   const saveToSupabase = async (updatedUser: User) => {
     try {
       const { error } = await supabase
@@ -51,13 +49,12 @@ const App: React.FC = () => {
           plan: updatedUser.plan,
           xp: updatedUser.xp,
           level: updatedUser.level,
-          xp_next_level: updatedUser.xpNextLevel, // Nome exato da coluna no Banco
+          xp_next_level: updatedUser.xpNextLevel,
           stats: updatedUser.stats
         }, { onConflict: 'id' });
       
       if (error) {
         console.error("ERRO NO SUPABASE:", error.message);
-        // Se o erro for de coluna faltante, o usuário precisa rodar o SQL ALTER TABLE
         return false;
       }
       return true;
@@ -118,12 +115,10 @@ const App: React.FC = () => {
           bio: data.bio || ''
         };
         
-        // Sincroniza mudanças de streak/dailyXP se necessário
         if (lastActivity && lastActivity !== today) {
           await saveToSupabase(loadedUser);
         }
       } else {
-        // Novo Perfil
         loadedUser = {
           id: authUserId,
           name: metadata?.full_name || 'Alpha Pioneer',

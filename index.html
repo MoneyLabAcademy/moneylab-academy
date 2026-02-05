@@ -31,60 +31,104 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
       window.MathJax = {
         tex: {
           inlineMath: [['$', '$'], ['\\(', '\\)']],
           displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        },
+        svg: {
+          fontCache: 'global'
         }
       };
     </script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     <style>
-      .text-gradient {
-        background: linear-gradient(to right, #10b981, #6366f1);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      .glass {
-        background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-      }
-      .dark .glass {
-        background: rgba(0, 0, 0, 0.2);
-      }
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(16, 185, 129, 0.2);
-        border-radius: 10px;
-      }
-      .gradient-finance {
-        background: radial-gradient(circle at top right, #064e3b, #020617);
-      }
+        body {
+            transition: background-color 0.2s ease, color 0.2s ease;
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass {
+            background: #ffffff;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+        }
+        
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: none;
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #059669 0%, #1e40af 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            display: inline;
+            padding: 0.1em 0;
+        }
+        
+        .dark .text-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .gradient-finance {
+            background: linear-gradient(135deg, #064e3b 0%, #020617 100%);
+        }
+
+        .progress-bg {
+            background-color: #f1f5f9;
+        }
+        .dark .progress-bg {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e293b;
+        }
+
+        mjx-container {
+            color: inherit !important;
+        }
+
+        #root {
+            min-height: 100vh;
+        }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.4",
+    "react-dom": "https://esm.sh/react-dom@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.94.1",
-    "react-dom": "https://esm.sh/react-dom@^19.2.4"
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.1",
+    "lucide-react": "https://esm.sh/lucide-react@^0.454.0"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white min-h-screen">
+<body class="bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-slate-100 selection:bg-emerald-500 selection:text-white">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>

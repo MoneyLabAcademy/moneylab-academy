@@ -38,6 +38,35 @@ const App: React.FC = () => {
     localStorage.setItem('moneylab-theme', theme);
   }, [theme]);
 
+  // FUNÇÃO DE PERSISTÊNCIA: Sincroniza o estado local com o Supabase
+  const saveToSupabase = async (updatedUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: updatedUser.id,
+          name: updatedUser.name,
+          bio: updatedUser.bio,
+          photo_url: updatedUser.photoUrl,
+          plan: updatedUser.plan,
+          xp: updatedUser.xp,
+          level: updatedUser.level,
+          xp_next_level: updatedUser.xpNextLevel, // Nome exato da coluna no Banco
+          stats: updatedUser.stats
+        }, { onConflict: 'id' });
+      
+      if (error) {
+        console.error("ERRO NO SUPABASE:", error.message);
+        // Se o erro for de coluna faltante, o usuário precisa rodar o SQL ALTER TABLE
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error("FALHA DE CONEXÃO:", e);
+      return false;
+    }
+  };
+
   const loadProfile = useCallback(async (authUserId: string, metadata: any, createdAt: string, email: string) => {
     try {
       const { data, error } = await supabase
@@ -49,7 +78,32 @@ const App: React.FC = () => {
       if (error) throw error;
 
       let loadedUser: User;
+      const today = new Date().toISOString().split('T')[0];
+
       if (data) {
+        let currentStats = data.stats || { dailyXP: [0,0,0,0,0,0,0], streak: 1, lastActivityDate: null };
+        const lastActivityDateStr = currentStats.lastActivityDate || null;
+        const lastActivity = lastActivityDateStr ? lastActivityDateStr.split('T')[0] : null;
+
+        if (lastActivity && lastActivity !== today) {
+          const newDailyXP = [...(currentStats.dailyXP || [0,0,0,0,0,0,0]).slice(1), 0];
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          
+          let newStreak = currentStats.streak || 1;
+          if (lastActivity !== yesterdayStr) newStreak = 1;
+
+          currentStats = {
+            ...currentStats,
+            dailyXP: newDailyXP,
+            streak: newStreak,
+            lastActivityDate: new Date().toISOString()
+          };
+        } else if (!lastActivity) {
+          currentStats.lastActivityDate = new Date().toISOString();
+        }
+
         loadedUser = {
           id: data.id,
           name: data.name || metadata?.full_name || 'Alpha Pioneer',
@@ -57,13 +111,19 @@ const App: React.FC = () => {
           plan: (data.plan as PlanType) || PlanType.FREE,
           level: data.level || 1,
           xp: data.xp || 0,
-          xpNextLevel: 1000,
-          stats: data.stats || { dailyXP: [0,0,0,0,0,0,0], streak: 1, achievements: [] },
+          xpNextLevel: data.xp_next_level || 1000,
+          stats: currentStats,
           joinedAt: data.created_at || createdAt,
           photoUrl: data.photo_url || '',
           bio: data.bio || ''
         };
+        
+        // Sincroniza mudanças de streak/dailyXP se necessário
+        if (lastActivity && lastActivity !== today) {
+          await saveToSupabase(loadedUser);
+        }
       } else {
+        // Novo Perfil
         loadedUser = {
           id: authUserId,
           name: metadata?.full_name || 'Alpha Pioneer',
@@ -75,37 +135,33 @@ const App: React.FC = () => {
           stats: { dailyXP: [0, 0, 0, 0, 0, 0, 10], achievements: [], streak: 1, totalTimeStudy: 0, lastClaimedAt: null, lastActivityDate: new Date().toISOString() },
           joinedAt: createdAt
         };
+        await saveToSupabase(loadedUser);
       }
 
       setUser(loadedUser);
       localStorage.setItem('moneylab-user-cache', JSON.stringify(loadedUser));
       return loadedUser;
     } catch (e) {
-      console.error("Profile load fail:", e);
+      console.error("Erro ao carregar perfil:", e);
       return null;
     }
   }, []);
 
   useEffect(() => {
     let isMounted = true;
-
     const initializeAuth = async () => {
       if (!isInitialLoad.current) return;
-      
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
           await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
           setCurrentPage('dashboard');
         } else {
-          const cached = localStorage.getItem('moneylab-user-cache');
-          if (cached && isMounted) {
-            setUser(JSON.parse(cached));
-            setCurrentPage('dashboard');
-          }
+          setUser(null);
+          localStorage.removeItem('moneylab-user-cache');
         }
       } catch (e) {
-        console.error("Auth init error:", e);
+        console.error("Erro de inicialização:", e);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -113,32 +169,80 @@ const App: React.FC = () => {
         }
       }
     };
-
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
-
       if (event === 'SIGNED_IN' && session?.user) {
-        if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'register') {
-           setLoading(true);
-           await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
-           setCurrentPage('dashboard');
-           setLoading(false);
-        }
+        await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
+        setCurrentPage('dashboard');
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('moneylab-user-cache');
         setCurrentPage('landing');
-        setLoading(false);
       }
     });
+    return () => { isMounted = false; subscription.unsubscribe(); };
+  }, [loadProfile]);
 
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [loadProfile, currentPage]);
+  const handleGainXP = useCallback(async (amount: number) => {
+    setUser(prev => {
+      if (!prev) return null;
+      
+      let newXP = prev.xp + amount;
+      let newLevel = prev.level;
+      let newXPNextLevel = prev.xpNextLevel;
+      
+      while (newXP >= newXPNextLevel) {
+        newLevel += 1;
+        newXPNextLevel = Math.floor(newXPNextLevel * 1.5);
+      }
+      
+      const newDailyXP = [...(prev.stats.dailyXP || [0,0,0,0,0,0,0])];
+      if (newDailyXP.length > 0) {
+        newDailyXP[newDailyXP.length - 1] += amount;
+      }
+      
+      const updated = {
+        ...prev,
+        xp: newXP,
+        level: newLevel,
+        xpNextLevel: newXPNextLevel,
+        stats: { ...prev.stats, dailyXP: newDailyXP, lastActivityDate: new Date().toISOString() }
+      };
+      
+      saveToSupabase(updated);
+      localStorage.setItem('moneylab-user-cache', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const handleClaimDaily = async () => {
+    if (!user) return;
+    const amount = 50;
+    handleGainXP(amount);
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          lastClaimedAt: new Date().toISOString(),
+          streak: (prev.stats.streak || 0) + 1
+        }
+      };
+      saveToSupabase(updated);
+      return updated;
+    });
+  };
+
+  const handleUpdateProfile = async (updates: Partial<User>) => {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    setUser(updated);
+    localStorage.setItem('moneylab-user-cache', JSON.stringify(updated));
+    await saveToSupabase(updated);
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8">
@@ -147,8 +251,7 @@ const App: React.FC = () => {
          <div className="absolute inset-0 border-4 border-t-emerald-500 rounded-full animate-spin"></div>
        </div>
        <div className="text-center space-y-2">
-         <p className="text-emerald-500 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Autenticando Protocolo Alpha</p>
-         <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Sincronizando Terminal de Dados...</p>
+         <p className="text-emerald-500 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Sincronizando Nucleo Alpha...</p>
        </div>
     </div>
   );
@@ -160,7 +263,7 @@ const App: React.FC = () => {
           module={activeModule} 
           user={user} 
           onClose={() => setActiveModule(null)} 
-          onGainXP={() => {}} 
+          onGainXP={handleGainXP} 
           onUpgrade={() => { setActiveModule(null); setCurrentPage('pricing'); }}
         />
       )}
@@ -168,48 +271,20 @@ const App: React.FC = () => {
         {currentPage === 'landing' && (
           <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center p-8 text-center space-y-16">
             <h1 className="text-7xl md:text-9xl font-black uppercase tracking-tighter leading-none animate-in fade-in slide-in-from-top-8 duration-1000">MONEYLAB<br/><span className="text-gradient">ACADEMY.</span></h1>
-            
             <div className="flex flex-col md:flex-row gap-6 items-center animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-              {/* Botão para Criar Conta */}
-              <button 
-                onClick={() => setCurrentPage('register')} 
-                className="group relative px-12 py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black rounded-[40px] uppercase text-xs cursor-pointer hover:bg-emerald-500 hover:text-white transition-all shadow-2xl hover:shadow-emerald-500/30 overflow-hidden"
-              >
-                <span className="relative z-10 tracking-widest">Criar Conta Alpha</span>
-                <div className="absolute inset-0 bg-emerald-400 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
-              </button>
-
-              {/* Botão para Iniciar Jornada (Login) */}
-              <button 
-                onClick={() => setCurrentPage('login')} 
-                className="px-12 py-6 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-500/5 font-black rounded-[40px] uppercase text-[10px] tracking-[0.2em] cursor-pointer transition-all backdrop-blur-sm shadow-sm"
-              >
-                Iniciar Jornada
-              </button>
+              <button onClick={() => setCurrentPage('register')} className="px-12 py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black rounded-[40px] uppercase text-xs cursor-pointer hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">Criar Conta Alpha</button>
+              <button onClick={() => setCurrentPage('login')} className="px-12 py-6 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-emerald-500 font-black rounded-[40px] uppercase text-[10px] tracking-[0.2em] cursor-pointer">Iniciar Jornada</button>
             </div>
-
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.5em] animate-pulse">
-              Protocolo Nexus v9.0 // Sincronização Estável
-            </p>
           </div>
         )}
         {currentPage === 'login' && <Auth mode="login" onSuccess={() => {}} onSwitch={setCurrentPage} />}
         {currentPage === 'register' && <Auth mode="register" onSuccess={() => {}} onSwitch={setCurrentPage} />}
-        {currentPage === 'dashboard' && user && <Dashboard user={user} onNavigate={setCurrentPage} onGainXP={() => {}} onClaimDaily={() => {}} />}
-        {currentPage === 'news' && user && <News userPlan={user.plan} onActivity={() => {}} onNavigate={setCurrentPage} />}
+        {currentPage === 'dashboard' && user && <Dashboard user={user} onNavigate={setCurrentPage} onGainXP={handleGainXP} onClaimDaily={handleClaimDaily} />}
+        {currentPage === 'news' && user && <News userPlan={user.plan} onActivity={() => handleGainXP(20)} onNavigate={setCurrentPage} />}
         {currentPage === 'terminal' && user && <TerminalAlpha />}
         {currentPage === 'simulators' && <CompoundInterestSimulator />}
         {currentPage === 'pricing' && user && <Pricing user={user} onUpgrade={() => {}} />}
-        {currentPage === 'settings' && user && (
-          <Settings 
-            user={user} 
-            onUpdateProfile={async (u) => { setUser({...user, ...u}); }} 
-            theme={theme} 
-            onUpdateTheme={setTheme} 
-            onNavigate={setCurrentPage} 
-            onUpgrade={() => {}} 
-          />
-        )}
+        {currentPage === 'settings' && user && <Settings user={user} onUpdateProfile={handleUpdateProfile} theme={theme} onUpdateTheme={setTheme} onNavigate={setCurrentPage} onUpgrade={() => {}} />}
         {currentPage === 'course' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {MODULES.map(mod => (

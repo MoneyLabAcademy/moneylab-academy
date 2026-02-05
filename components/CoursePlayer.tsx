@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Module, Lesson, User, PlanType, Quiz } from '../types.ts';
-import { generateDeepLesson, generateModuleQuiz } from '../services/geminiService.ts';
+import { Module, Lesson, User, PlanType, Quiz } from '../types';
+import { generateDeepLesson, generateModuleQuiz } from '../services/geminiService';
 
 interface CoursePlayerProps {
   module: Module;
@@ -92,9 +92,11 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ module, user, onClos
 
   const handleAnswerQuiz = () => {
     if (selectedOption === null) return;
+    
     if (selectedOption === moduleQuizzes[currentQuizIndex].correctAnswer) {
       setQuizScore(prev => prev + 1);
     }
+    
     setShowExplanation(true);
   };
 
@@ -186,6 +188,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ module, user, onClos
 
                 <div className="glass p-12 rounded-[48px] border border-slate-200 dark:border-white/5 space-y-10">
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-relaxed">{moduleQuizzes[currentQuizIndex].question}</h3>
+                  
                   <div className="space-y-4">
                     {moduleQuizzes[currentQuizIndex].options.map((opt, i) => (
                       <button
@@ -297,33 +300,25 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ module, user, onClos
                        ))}
                     </div>
 
-                    <div className="glass p-12 md:p-24 rounded-[60px] border border-slate-200 dark:border-white/5 relative overflow-hidden">
-                      <div className="prose prose-slate dark:prose-invert max-w-none font-medium leading-relaxed text-slate-700 dark:text-slate-300">
-                        {deepContent.split('\n').map((paragraph, idx) => (
-                          <p key={idx} className="mb-6">{paragraph}</p>
-                        ))}
-                      </div>
-                      
-                      <div className="mt-16 pt-12 border-t border-slate-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
-                        <div className="flex items-center gap-6">
-                           <div className="text-center">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Palavras</p>
-                             <p className="text-xl font-black text-slate-900 dark:text-white">{wordCount}</p>
-                           </div>
-                           <div className="w-px h-8 bg-slate-200 dark:bg-white/10"></div>
-                           <div className="text-center">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Leitura</p>
-                             <p className="text-xl font-black text-slate-900 dark:text-white">~{Math.ceil(wordCount/200)} min</p>
-                           </div>
-                        </div>
-                        
-                        <button 
-                          onClick={handleAdvance}
-                          className="px-12 py-5 bg-emerald-500 text-slate-950 font-black rounded-2xl hover:bg-emerald-400 hover:scale-105 transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-emerald-500/20"
-                        >
-                          CONCLUIR TÓPICO E AVANÇAR →
-                        </button>
-                      </div>
+                    <div className="glass p-12 md:p-24 rounded-[60px] border border-slate-200 dark:border-white/5 bg-white/[0.01] shadow-2xl font-serif text-xl leading-[1.8] text-slate-700 dark:text-slate-300 relative z-10">
+                       <div className="mb-20 text-center space-y-4 border-b border-slate-200 dark:border-white/5 pb-10">
+                          <div className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-[0.8em]">SIMULAÇÃO TEÓRICA ALPHA // NÃO É RECOMENDAÇÃO</div>
+                          <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white font-heading italic">Tese Acadêmica: {activeLesson?.title}</h2>
+                       </div>
+
+                       <div className="whitespace-pre-wrap prose dark:prose-invert prose-emerald max-w-none mathjax-render-area selection:bg-emerald-500 selection:text-slate-950">
+                         {deepContent}
+                       </div>
+                       
+                       <div className="mt-24 pt-12 border-t border-slate-200 dark:border-white/5 flex flex-col items-center gap-10">
+                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.5em]">Fim do Documento Teórico IA</p>
+                          <button 
+                            onClick={handleAdvance}
+                            className="px-20 py-8 bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-black rounded-full hover:bg-emerald-500 transition-all uppercase tracking-[0.4em] text-xs shadow-2xl"
+                          >
+                            Próximo Tratado →
+                          </button>
+                       </div>
                     </div>
                   </article>
                 )}

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, PlanType, Page } from '../types.ts';
+import { User, PlanType, Page } from '../types';
 import { Sun, Moon, Gem, Zap, Globe } from 'lucide-react';
 
 interface SettingsProps {

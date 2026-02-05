@@ -40,29 +40,26 @@ const App: React.FC = () => {
 
   const saveToSupabase = async (updatedUser: User) => {
     try {
-      const profileData = {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        bio: updatedUser.bio,
-        photo_url: updatedUser.photoUrl,
-        plan: updatedUser.plan,
-        xp: updatedUser.xp,
-        level: updatedUser.level,
-        xp_next_level: updatedUser.xpNextLevel,
-        stats: updatedUser.stats
-      };
-
       const { error } = await supabase
         .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
+        .upsert({
+          id: updatedUser.id,
+          name: updatedUser.name,
+          bio: updatedUser.bio,
+          photo_url: updatedUser.photoUrl,
+          plan: updatedUser.plan,
+          xp: updatedUser.xp,
+          level: updatedUser.level,
+          xp_next_level: updatedUser.xpNextLevel,
+          stats: updatedUser.stats
+        }, { onConflict: 'id' });
       
       if (error) {
-        console.error("SUPABASE SAVE ERROR:", error.message);
+        console.warn("Supabase Sync Warning:", error.message);
         return false;
       }
       return true;
     } catch (e) {
-      console.error("NETWORK ERROR DURING SAVE:", e);
       return false;
     }
   };
@@ -85,7 +82,6 @@ const App: React.FC = () => {
         const lastActivityDateStr = currentStats.lastActivityDate || null;
         const lastActivity = lastActivityDateStr ? lastActivityDateStr.split('T')[0] : null;
 
-        // Lógica de reset diário de XP e Streak
         if (lastActivity && lastActivity !== today) {
           const newDailyXP = [...(currentStats.dailyXP || [0,0,0,0,0,0,0]).slice(1), 0];
           const yesterday = new Date();
@@ -120,10 +116,9 @@ const App: React.FC = () => {
         };
         
         if (lastActivity && lastActivity !== today) {
-          await saveToSupabase(loadedUser);
+          saveToSupabase(loadedUser);
         }
       } else {
-        // Novo Perfil
         loadedUser = {
           id: authUserId,
           name: metadata?.full_name || 'Alpha Pioneer',
@@ -135,14 +130,13 @@ const App: React.FC = () => {
           stats: { dailyXP: [0, 0, 0, 0, 0, 0, 10], achievements: [], streak: 1, totalTimeStudy: 0, lastClaimedAt: null, lastActivityDate: new Date().toISOString() },
           joinedAt: createdAt
         };
-        await saveToSupabase(loadedUser);
+        saveToSupabase(loadedUser);
       }
 
       setUser(loadedUser);
       localStorage.setItem('moneylab-user-cache', JSON.stringify(loadedUser));
       return loadedUser;
     } catch (e) {
-      console.error("PROFILE LOAD ERROR:", e);
       return null;
     }
   }, []);
@@ -154,16 +148,16 @@ const App: React.FC = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
-          const loaded = await loadProfile(
+          await loadProfile(
             session.user.id, 
             session.user.user_metadata, 
             session.user.created_at, 
             session.user.email || ''
           );
-          if (loaded) setCurrentPage('dashboard');
+          setCurrentPage('dashboard');
         }
       } catch (e) {
-        console.error("INIT ERROR:", e);
+        console.error("Auth initialization failed");
       } finally {
         if (isMounted) setLoading(false);
       }

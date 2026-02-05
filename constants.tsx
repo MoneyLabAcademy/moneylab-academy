@@ -1,5 +1,5 @@
 
-import { Module, PlanType, Lesson } from './types.ts';
+import { Module, PlanType, Lesson } from './types';
 
 const generate15Lessons = (moduleId: string, moduleTitle: string, isPremium: boolean): Lesson[] => {
   const topics = [

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Page } from '../types.ts';
-import { supabase } from '../services/supabase.ts';
+import { Page } from '../types';
+import { supabase } from '../services/supabase';
 import { ArrowRight, AlertCircle } from 'lucide-react';
 
 interface AuthProps {

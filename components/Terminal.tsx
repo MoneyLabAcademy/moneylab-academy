@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { askAlphaTerminal } from '../services/geminiService.ts';
+import { askAlphaTerminal } from '../services/geminiService';
 
 export const TerminalAlpha: React.FC = () => {
   const [history, setHistory] = useState<{ query: string, response: string, sources: any[] }[]>([]);

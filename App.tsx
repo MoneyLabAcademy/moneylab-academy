@@ -1,17 +1,17 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout } from './components/Layout.tsx';
-import { Auth } from './components/Auth.tsx';
-import { Settings } from './components/Settings.tsx';
-import { Dashboard } from './components/Dashboard.tsx';
-import { News } from './components/News.tsx';
-import { CoursePlayer } from './components/CoursePlayer.tsx';
-import { TerminalAlpha } from './components/Terminal.tsx';
-import { Pricing } from './components/Pricing.tsx';
-import { Page, PlanType, User, Module } from './types.ts';
-import { MODULES } from './constants.tsx';
-import { CompoundInterestSimulator } from './components/Simulators.tsx';
-import { supabase } from './services/supabase.ts';
+import { Layout } from './components/Layout';
+import { Auth } from './components/Auth';
+import { Settings } from './components/Settings';
+import { Dashboard } from './components/Dashboard';
+import { News } from './components/News';
+import { CoursePlayer } from './components/CoursePlayer';
+import { TerminalAlpha } from './components/Terminal';
+import { Pricing } from './components/Pricing';
+import { Page, PlanType, User, Module } from './types';
+import { MODULES } from './constants';
+import { CompoundInterestSimulator } from './components/Simulators';
+import { supabase } from './services/supabase';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('landing');

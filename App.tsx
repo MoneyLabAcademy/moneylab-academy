@@ -21,7 +21,8 @@ const App: React.FC = () => {
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
-      return (localStorage.getItem('moneylab-theme') as 'light' | 'dark') || 'dark';
+      const saved = localStorage.getItem('moneylab-theme');
+      return (saved as 'light' | 'dark') || 'dark';
     } catch {
       return 'dark';
     }
@@ -39,19 +40,21 @@ const App: React.FC = () => {
 
   const saveToSupabase = async (updatedUser: User) => {
     try {
+      const profileData = {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        bio: updatedUser.bio,
+        photo_url: updatedUser.photoUrl,
+        plan: updatedUser.plan,
+        xp: updatedUser.xp,
+        level: updatedUser.level,
+        xp_next_level: updatedUser.xpNextLevel,
+        stats: updatedUser.stats
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: updatedUser.id,
-          name: updatedUser.name,
-          bio: updatedUser.bio,
-          photo_url: updatedUser.photoUrl,
-          plan: updatedUser.plan,
-          xp: updatedUser.xp,
-          level: updatedUser.level,
-          xp_next_level: updatedUser.xpNextLevel,
-          stats: updatedUser.stats
-        }, { onConflict: 'id' });
+        .upsert(profileData, { onConflict: 'id' });
       
       if (error) {
         console.error("SUPABASE SAVE ERROR:", error.message);
@@ -59,7 +62,7 @@ const App: React.FC = () => {
       }
       return true;
     } catch (e) {
-      console.error("NETWORK ERROR:", e);
+      console.error("NETWORK ERROR DURING SAVE:", e);
       return false;
     }
   };
@@ -82,6 +85,7 @@ const App: React.FC = () => {
         const lastActivityDateStr = currentStats.lastActivityDate || null;
         const lastActivity = lastActivityDateStr ? lastActivityDateStr.split('T')[0] : null;
 
+        // Lógica de reset diário de XP e Streak
         if (lastActivity && lastActivity !== today) {
           const newDailyXP = [...(currentStats.dailyXP || [0,0,0,0,0,0,0]).slice(1), 0];
           const yesterday = new Date();
@@ -119,6 +123,7 @@ const App: React.FC = () => {
           await saveToSupabase(loadedUser);
         }
       } else {
+        // Novo Perfil
         loadedUser = {
           id: authUserId,
           name: metadata?.full_name || 'Alpha Pioneer',
@@ -144,39 +149,52 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
+    
     const initializeAuth = async () => {
-      if (!isInitialLoad.current) return;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
-          await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
-          setCurrentPage('dashboard');
-        } else {
-          setUser(null);
+          const loaded = await loadProfile(
+            session.user.id, 
+            session.user.user_metadata, 
+            session.user.created_at, 
+            session.user.email || ''
+          );
+          if (loaded) setCurrentPage('dashboard');
         }
       } catch (e) {
         console.error("INIT ERROR:", e);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-          isInitialLoad.current = false;
-        }
+        if (isMounted) setLoading(false);
       }
     };
+
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
+      
       if (event === 'SIGNED_IN' && session?.user) {
-        await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
+        setLoading(true);
+        await loadProfile(
+          session.user.id, 
+          session.user.user_metadata, 
+          session.user.created_at, 
+          session.user.email || ''
+        );
         setCurrentPage('dashboard');
+        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('moneylab-user-cache');
         setCurrentPage('landing');
       }
     });
-    return () => { isMounted = false; subscription.unsubscribe(); };
+
+    return () => { 
+      isMounted = false; 
+      subscription.unsubscribe(); 
+    };
   }, [loadProfile]);
 
   const handleGainXP = useCallback(async (amount: number) => {

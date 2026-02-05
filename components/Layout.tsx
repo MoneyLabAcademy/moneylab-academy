@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Page, User } from '../types';
-import { LegalFooter } from './Footer';
+import { Page, User } from '../types.ts';
+import { LegalFooter } from './Footer.tsx';
 import { DoorOpen } from 'lucide-react';
 
 interface LayoutProps {

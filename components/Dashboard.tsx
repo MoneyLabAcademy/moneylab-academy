@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, PlanType } from '../types';
-import { supabase } from '../services/supabase';
+import { User, PlanType } from '../types.ts';
+import { supabase } from '../services/supabase.ts';
 
 interface DashboardProps {
   user: User;

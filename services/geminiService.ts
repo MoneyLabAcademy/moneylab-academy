@@ -1,8 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { supabase } from "./supabase";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { supabase } from "./supabase.ts";
 
 const SYSTEM_RULES = `Você é um modelo de linguagem usado exclusivamente para geração de conteúdo educacional na MoneyLab Academy.
 
@@ -27,6 +25,7 @@ function cleanJsonString(str: string): string {
 
 export async function generateDeepLesson(moduleTitle: string, lessonTitle: string): Promise<string> {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Escreva uma aula completa e profunda sobre "${lessonTitle}" (Módulo: ${moduleTitle}). Use LaTeX para fórmulas.`,
@@ -38,12 +37,14 @@ export async function generateDeepLesson(moduleTitle: string, lessonTitle: strin
     });
     return response.text || "Erro ao gerar análise profunda.";
   } catch (error: any) {
-    return "ERRO NO NÚCLEO ALPHA: Falha na conexão de dados teóricos.";
+    console.error("Gemini Error:", error);
+    return "ERRO NO NÚCLEO ALPHA: Falha na conexão de dados teóricos. Verifique se a API_KEY está configurada no Vercel.";
   }
 }
 
 export async function generateModuleQuiz(moduleTitle: string, moduleObjective: string): Promise<any[]> {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gerar um exame de 15 perguntas sobre "${moduleTitle}".`,
@@ -73,6 +74,7 @@ export async function generateModuleQuiz(moduleTitle: string, moduleObjective: s
 
 export async function askAlphaTerminal(query: string): Promise<{ text: string, sources: { title: string, url: string }[] }> {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: query,
@@ -90,7 +92,7 @@ export async function askAlphaTerminal(query: string): Promise<{ text: string, s
 
     return { text, sources: sources as { title: string, url: string }[] };
   } catch (error: any) {
-    return { text: "Erro na conexão.", sources: [] };
+    return { text: "Erro na conexão. Verifique a API_KEY.", sources: [] };
   }
 }
 
@@ -110,6 +112,7 @@ export async function fetchLiveMarketNews(count: number = 10, forceRefresh: bool
       }
     }
 
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `NOTÍCIAS DE AGORA (${new Date().toLocaleString('pt-BR')}): Realize uma busca profunda no Google Search pelas notícias econômicas, financeiras e de mercado mais importantes das últimas horas.

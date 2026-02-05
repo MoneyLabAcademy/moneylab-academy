@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlanType } from '../types';
-import { fetchLiveMarketNews } from '../services/geminiService';
+import { PlanType } from '../types.ts';
+import { fetchLiveMarketNews } from '../services/geminiService.ts';
 import { Globe, TrendingUp, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface NewsProps {

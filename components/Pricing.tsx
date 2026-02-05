@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { PlanType, User } from '../types';
-import { PLANS } from '../constants';
+import { PlanType, User } from '../types.ts';
+import { PLANS } from '../constants.tsx';
 
 interface PricingProps {
   user: User;

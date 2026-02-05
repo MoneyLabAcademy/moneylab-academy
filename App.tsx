@@ -54,16 +54,12 @@ const App: React.FC = () => {
         }, { onConflict: 'id' });
       
       if (error) {
-        console.error("ERRO CRÍTICO SUPABASE:", error.message);
-        // Se o erro for de coluna inexistente, avisamos o console para o usuário rodar o SQL
-        if (error.message.includes('xp_next_level')) {
-          console.warn("ALERTA: Você precisa rodar o comando ALTER TABLE no SQL Editor do Supabase!");
-        }
+        console.error("SUPABASE SAVE ERROR:", error.message);
         return false;
       }
       return true;
     } catch (e) {
-      console.error("FALHA DE REDE SUPABASE:", e);
+      console.error("NETWORK ERROR:", e);
       return false;
     }
   };
@@ -141,7 +137,7 @@ const App: React.FC = () => {
       localStorage.setItem('moneylab-user-cache', JSON.stringify(loadedUser));
       return loadedUser;
     } catch (e) {
-      console.error("Erro ao carregar perfil:", e);
+      console.error("PROFILE LOAD ERROR:", e);
       return null;
     }
   }, []);
@@ -157,10 +153,9 @@ const App: React.FC = () => {
           setCurrentPage('dashboard');
         } else {
           setUser(null);
-          localStorage.removeItem('moneylab-user-cache');
         }
       } catch (e) {
-        console.error("Erro de inicialização:", e);
+        console.error("INIT ERROR:", e);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -244,13 +239,14 @@ const App: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8 text-center px-6">
        <div className="relative w-24 h-24">
          <div className="absolute inset-0 border-4 border-emerald-500/10 rounded-full"></div>
          <div className="absolute inset-0 border-4 border-t-emerald-500 rounded-full animate-spin"></div>
        </div>
-       <div className="text-center space-y-2">
+       <div className="space-y-4">
          <p className="text-emerald-500 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Sincronizando Nucleo Alpha...</p>
+         <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest max-w-[200px] mx-auto opacity-50">Isolando frequências de dados e carregando protocolos de segurança</p>
        </div>
     </div>
   );
@@ -268,7 +264,7 @@ const App: React.FC = () => {
       )}
       <Layout activePage={currentPage} onNavigate={setCurrentPage} user={user} onLogout={() => supabase.auth.signOut()}>
         {currentPage === 'landing' && (
-          <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center p-8 text-center space-y-16">
+          <div className="min-h-[calc(100vh-100px)] flex flex-col items-center justify-center p-8 text-center space-y-16">
             <h1 className="text-7xl md:text-9xl font-black uppercase tracking-tighter leading-none animate-in fade-in slide-in-from-top-8 duration-1000">MONEYLAB<br/><span className="text-gradient">ACADEMY.</span></h1>
             <div className="flex flex-col md:flex-row gap-6 items-center animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               <button onClick={() => setCurrentPage('register')} className="px-12 py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black rounded-[40px] uppercase text-xs cursor-pointer hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">Criar Conta Alpha</button>

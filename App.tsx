@@ -60,6 +60,7 @@ const App: React.FC = () => {
       }
       return true;
     } catch (e) {
+      console.error("Sync Failure:", e);
       return false;
     }
   };
@@ -137,6 +138,7 @@ const App: React.FC = () => {
       localStorage.setItem('moneylab-user-cache', JSON.stringify(loadedUser));
       return loadedUser;
     } catch (e) {
+      console.error("Profile load error:", e);
       return null;
     }
   }, []);
@@ -157,7 +159,7 @@ const App: React.FC = () => {
           setCurrentPage('dashboard');
         }
       } catch (e) {
-        console.error("Auth initialization failed");
+        console.error("Auth session check failed");
       } finally {
         if (isMounted) setLoading(false);
       }

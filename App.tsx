@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { Auth } from './components/Auth';
@@ -55,12 +54,16 @@ const App: React.FC = () => {
         }, { onConflict: 'id' });
       
       if (error) {
-        console.error("ERRO NO SUPABASE:", error.message);
+        console.error("ERRO CRÍTICO SUPABASE:", error.message);
+        // Se o erro for de coluna inexistente, avisamos o console para o usuário rodar o SQL
+        if (error.message.includes('xp_next_level')) {
+          console.warn("ALERTA: Você precisa rodar o comando ALTER TABLE no SQL Editor do Supabase!");
+        }
         return false;
       }
       return true;
     } catch (e) {
-      console.error("FALHA DE CONEXÃO:", e);
+      console.error("FALHA DE REDE SUPABASE:", e);
       return false;
     }
   };

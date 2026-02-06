@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Page, User } from '../types.ts';
-import { LegalFooter } from './Footer.tsx';
-import { DoorOpen } from 'lucide-react';
+import { Page, User } from '../types';
+import { LegalFooter } from './Footer';
+import { DoorOpen, Menu, X } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,15 +14,19 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate, user, onLogout }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!user) return <div className="bg-slate-50 dark:bg-slate-950">{children}</div>;
 
   const NavButton = ({ id, label, icon }: { id: Page; label: string; icon: string }) => (
     <button 
-      onClick={() => onNavigate(id)}
-      className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] cursor-pointer ${
+      onClick={() => {
+        onNavigate(id);
+        setMobileMenuOpen(false);
+      }}
+      className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-200 font-black uppercase tracking-widest text-[10px] cursor-pointer active:scale-95 ${
         activePage === id 
-        ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10' 
+        ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20' 
         : 'text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent'
       }`}
     >
@@ -34,9 +38,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   return (
     <div className="h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-[#020617] text-slate-950 dark:text-white transition-colors duration-300 overflow-hidden">
       
-      {/* Sidebar - Fixa no Desktop através do overflow-hidden no pai e h-full aqui */}
-      <aside className="w-full md:w-80 h-auto md:h-full bg-white dark:bg-slate-900/50 dark:backdrop-blur-xl flex-shrink-0 flex flex-col border-r border-slate-200 dark:border-white/5 relative z-50 overflow-y-auto custom-scrollbar">
-        <div className="p-10">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/5 z-[60]">
+        <h1 className="text-xl font-black font-heading tracking-tighter flex items-center gap-2">
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-950 text-sm">M</div>
+          <span>MONEYLAB</span>
+        </h1>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-500 active:scale-90 transition-transform">
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-0 z-50 md:relative md:flex w-full md:w-80 h-full bg-white dark:bg-slate-900/50 dark:backdrop-blur-xl flex-shrink-0 flex flex-col border-r border-slate-200 dark:border-white/5 transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-y-auto custom-scrollbar`}>
+        <div className="p-10 hidden md:block">
           <h1 className="text-2xl font-black font-heading tracking-tighter flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-slate-950 text-lg shadow-lg">M</div>
             <div className="flex flex-col">
@@ -46,7 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
           </h1>
         </div>
 
-        <nav className="flex-1 px-6 space-y-2 pb-10">
+        <nav className="flex-1 px-6 space-y-2 pb-10 pt-20 md:pt-0">
           <NavButton id="dashboard" label="QG de Comando" icon="⚡" />
           <NavButton id="terminal" label="IA Nexus Alpha" icon="🛰️" />
           <NavButton id="course" label="Forja de Elite" icon="🔥" />
@@ -58,20 +73,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
         <div className="p-6 mt-auto">
            <button 
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-3 p-4 bg-slate-50 dark:bg-red-500/10 text-slate-500 dark:text-red-400 rounded-2xl border border-slate-200 dark:border-red-500/20 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/20 transition-all font-black uppercase tracking-widest text-[10px] cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 p-4 bg-slate-50 dark:bg-red-500/10 text-slate-500 dark:text-red-400 rounded-2xl border border-slate-200 dark:border-red-500/20 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/20 transition-all font-black uppercase tracking-widest text-[10px] cursor-pointer active:scale-95"
           >
             <DoorOpen size={16} /> SAIR DO SISTEMA
           </button>
         </div>
       </aside>
 
-      {/* Área Principal - O scroll agora acontece apenas aqui */}
+      {/* Área Principal */}
       <main className="flex-1 overflow-y-auto p-6 md:p-16 relative flex flex-col custom-scrollbar">
         {/* Header de Perfil */}
-        <div className="absolute top-8 right-8 z-[100]">
+        <div className="absolute top-8 right-8 z-[40] hidden md:block">
           <button 
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-4 p-2 pl-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-full shadow-md hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer"
+            className="flex items-center gap-4 p-2 pl-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-full shadow-md hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer active:scale-95"
           >
             <div className="flex flex-col items-end pr-2 hidden sm:flex">
               <p className="text-[10px] font-black uppercase text-slate-950 dark:text-white">{user.name}</p>
@@ -86,7 +101,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
             <div className="absolute top-full right-0 mt-3 w-48 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-2 border border-slate-200 dark:border-white/10 animate-in fade-in slide-in-from-top-2">
               <button 
                 onClick={() => { onNavigate('settings'); setShowProfileMenu(false); }}
-                className="w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl text-slate-950 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest cursor-pointer"
+                className="w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl text-slate-950 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest cursor-pointer active:scale-95"
               >
                 ⚙️ Configurações
               </button>
@@ -94,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
           )}
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10 flex-1 w-full pt-20 md:pt-0">
+        <div className="max-w-7xl mx-auto relative z-10 flex-1 w-full pt-4 md:pt-0 animate-in fade-in duration-500">
           {children}
         </div>
         <LegalFooter />

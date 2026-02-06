@@ -2,15 +2,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, PlanType } from '../types';
 import { supabase } from '../services/supabase';
+import { MODULES } from '../constants';
+import { Play } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
   onNavigate: (page: any) => void;
   onGainXP: (amount: number) => void;
   onClaimDaily: () => void;
+  onSelectModule?: (module: any) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP, onClaimDaily }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP, onClaimDaily, onSelectModule }) => {
   const xpPercentage = (user.xp / user.xpNextLevel) * 100;
   const [ranking, setRanking] = useState<any[] | null>(null);
   const [userRank, setUserRank] = useState<number | string>('??');
@@ -20,7 +23,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP
   const lastClaim = user.stats.lastClaimedAt ? new Date(user.stats.lastClaimedAt) : null;
   const canClaim = !lastClaim || (new Date().getTime() - lastClaim.getTime()) >= 24 * 60 * 60 * 1000;
 
-  // Cronômetro para o próximo bônus (24h após a última coleta)
   useEffect(() => {
     const timer = setInterval(() => {
       if (lastClaim) {
@@ -45,7 +47,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP
   const fetchRanking = useCallback(async () => {
     setIsSyncing(true);
     try {
-      // Buscando também o campo 'plan' para o ranking
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, xp, photo_url, plan')
@@ -81,14 +82,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP
   ];
 
   const todaysXP = user.stats.dailyXP ? user.stats.dailyXP[user.stats.dailyXP.length - 1] : 0;
+  
+  // Recomendar os 3 primeiros módulos para acesso rápido
+  const recommendedModules = MODULES.slice(0, 3);
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      <div className="flex flex-col items-center justify-center py-20 px-8 glass rounded-[60px] relative overflow-hidden group">
+      <div className="flex flex-col items-center justify-center py-16 md:py-20 px-8 glass rounded-[60px] relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
         
         <div className="relative z-10 flex flex-col items-center">
-          <div className="relative w-64 h-64 md:w-80 md:h-80 mb-12">
+          <div className="relative w-56 h-56 md:w-80 md:h-80 mb-12">
             <svg className="w-full h-full transform -rotate-90">
               <circle cx="50%" cy="50%" r="45%" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-100 dark:text-white/5" />
               <circle 
@@ -105,48 +109,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Poder Alpha</p>
-              <span className="text-7xl md:text-8xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{user.xp}</span>
-              <div className="mt-6 px-5 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+              <span className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{user.xp}</span>
+              <div className="mt-4 md:mt-6 px-5 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                 <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">NÍVEL {user.level}</p>
               </div>
             </div>
           </div>
           
           <div className="text-center space-y-10 w-full">
-             <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-tight">CENTRAL DE <span className="text-gradient">COMANDO</span></h2>
+             <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-tight">CENTRAL DE <span className="text-gradient">COMANDO</span></h2>
              
              <div className="flex flex-col items-center gap-4">
                <button 
                   onClick={onClaimDaily}
                   disabled={!canClaim}
-                  className={`group relative px-14 py-5 font-black rounded-3xl overflow-hidden transition-all uppercase tracking-widest text-[11px] shadow-xl ${canClaim ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 border border-slate-200 dark:border-white/5 cursor-not-allowed'}`}
+                  className={`group relative px-10 md:px-14 py-5 font-black rounded-3xl overflow-hidden transition-all uppercase tracking-widest text-[11px] shadow-xl active:scale-95 ${canClaim ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 hover:scale-105' : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 border border-slate-200 dark:border-white/5 cursor-not-allowed'}`}
                >
                   <span className="relative z-10 flex items-center gap-3">
                     {canClaim ? '💎 COLETAR BÔNUS DIÁRIO (+50 XP)' : `PRÓXIMO BÔNUS EM: ${timeLeft}`}
                   </span>
                </button>
                {!canClaim && (
-                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Aguarde o reset do bônus para manter a sequência</p>
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronização diária concluída</p>
                )}
              </div>
 
-             <div className="flex justify-center gap-8 md:gap-16 pt-10 border-t border-slate-100 dark:border-white/5 max-w-2xl mx-auto">
+             <div className="flex justify-center gap-6 md:gap-16 pt-10 border-t border-slate-100 dark:border-white/5 max-w-2xl mx-auto">
                 <div className="text-center">
                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase mb-2 tracking-widest">Ganhos Hoje</p>
-                   <p className="text-3xl font-black text-emerald-600 dark:text-emerald-500">+{todaysXP} XP</p>
+                   <p className="text-2xl md:text-3xl font-black text-emerald-600 dark:text-emerald-500">+{todaysXP} XP</p>
                 </div>
                 <div className="text-center">
                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase mb-2 tracking-widest">Frequência</p>
-                   <p className="text-3xl font-black text-orange-500">🔥 {user.stats.streak || 1}D</p>
+                   <p className="text-2xl md:text-3xl font-black text-orange-500">🔥 {user.stats.streak || 1}D</p>
                 </div>
                 <div className="text-center">
                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase mb-2 tracking-widest">Protocolo</p>
-                   <p className={`text-3xl font-black ${user.plan === PlanType.ELITE ? 'text-indigo-600 dark:text-indigo-500' : 'text-emerald-600 dark:text-emerald-500'}`}>{user.plan}</p>
+                   <p className={`text-2xl md:text-3xl font-black ${user.plan === PlanType.ELITE ? 'text-indigo-600 dark:text-indigo-500' : 'text-emerald-600 dark:text-emerald-500'}`}>{user.plan}</p>
                 </div>
              </div>
           </div>
         </div>
       </div>
+
+      {/* NOVO: Atalhos Rápidos */}
+      <section className="space-y-6">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white flex items-center gap-3">
+          <span className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-sm">🔥</span>
+          Continuar Jornada
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {recommendedModules.map((mod) => (
+            <div 
+              key={mod.id} 
+              onClick={() => onSelectModule && onSelectModule(mod)}
+              className="p-6 glass rounded-[32px] border border-slate-200 dark:border-white/5 hover:border-emerald-500 transition-all cursor-pointer group active:scale-95"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-3xl">{mod.icon}</span>
+                <div className="w-8 h-8 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Play size={14} fill="currentColor" />
+                </div>
+              </div>
+              <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white line-clamp-1">{mod.title}</h4>
+              <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase tracking-widest">Entrar no Módulo</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="glass rounded-[48px] p-10 border border-slate-200 dark:border-white/5 relative overflow-hidden flex flex-col min-h-[500px]">
@@ -160,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onGainXP
             <button 
               onClick={fetchRanking}
               disabled={isSyncing}
-              className={`p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-emerald-500 transition-all ${isSyncing ? 'animate-spin' : ''}`}
+              className={`p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-emerald-500 transition-all active:scale-95 ${isSyncing ? 'animate-spin' : ''}`}
             >
               🔄
             </button>

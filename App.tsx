@@ -1,16 +1,17 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout } from './components/Layout';
-import { Auth } from './components/Auth';
-import { Settings } from './components/Settings';
-import { Dashboard } from './components/Dashboard';
-import { News } from './components/News';
-import { CoursePlayer } from './components/CoursePlayer';
-import { TerminalAlpha } from './components/Terminal';
-import { Pricing } from './components/Pricing';
-import { Page, PlanType, User, Module } from './types';
-import { MODULES } from './constants';
-import { CompoundInterestSimulator } from './components/Simulators';
-import { supabase } from './services/supabase';
+import { Layout } from './components/Layout.tsx';
+import { Auth } from './components/Auth.tsx';
+import { Settings } from './components/Settings.tsx';
+import { Dashboard } from './components/Dashboard.tsx';
+import { News } from './components/News.tsx';
+import { CoursePlayer } from './components/CoursePlayer.tsx';
+import { TerminalAlpha } from './components/Terminal.tsx';
+import { Pricing } from './components/Pricing.tsx';
+import { Page, PlanType, User, Module } from './types.ts';
+import { MODULES } from './constants.tsx';
+import { CompoundInterestSimulator } from './components/Simulators.tsx';
+import { supabase } from './services/supabase.ts';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('landing');
@@ -21,8 +22,7 @@ const App: React.FC = () => {
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
-      const saved = localStorage.getItem('moneylab-theme');
-      return (saved as 'light' | 'dark') || 'dark';
+      return (localStorage.getItem('moneylab-theme') as 'light' | 'dark') || 'dark';
     } catch {
       return 'dark';
     }
@@ -38,6 +38,7 @@ const App: React.FC = () => {
     localStorage.setItem('moneylab-theme', theme);
   }, [theme]);
 
+  // FUNÇÃO DE PERSISTÊNCIA: Sincroniza o estado local com o Supabase
   const saveToSupabase = async (updatedUser: User) => {
     try {
       const { error } = await supabase
@@ -50,17 +51,18 @@ const App: React.FC = () => {
           plan: updatedUser.plan,
           xp: updatedUser.xp,
           level: updatedUser.level,
-          xp_next_level: updatedUser.xpNextLevel,
+          xp_next_level: updatedUser.xpNextLevel, // Nome exato da coluna no Banco
           stats: updatedUser.stats
         }, { onConflict: 'id' });
       
       if (error) {
-        console.warn("Supabase Sync Warning:", error.message);
+        console.error("ERRO NO SUPABASE:", error.message);
+        // Se o erro for de coluna faltante, o usuário precisa rodar o SQL ALTER TABLE
         return false;
       }
       return true;
     } catch (e) {
-      console.error("Sync Failure:", e);
+      console.error("FALHA DE CONEXÃO:", e);
       return false;
     }
   };
@@ -116,10 +118,12 @@ const App: React.FC = () => {
           bio: data.bio || ''
         };
         
+        // Sincroniza mudanças de streak/dailyXP se necessário
         if (lastActivity && lastActivity !== today) {
-          saveToSupabase(loadedUser);
+          await saveToSupabase(loadedUser);
         }
       } else {
+        // Novo Perfil
         loadedUser = {
           id: authUserId,
           name: metadata?.full_name || 'Alpha Pioneer',
@@ -131,66 +135,54 @@ const App: React.FC = () => {
           stats: { dailyXP: [0, 0, 0, 0, 0, 0, 10], achievements: [], streak: 1, totalTimeStudy: 0, lastClaimedAt: null, lastActivityDate: new Date().toISOString() },
           joinedAt: createdAt
         };
-        saveToSupabase(loadedUser);
+        await saveToSupabase(loadedUser);
       }
 
       setUser(loadedUser);
       localStorage.setItem('moneylab-user-cache', JSON.stringify(loadedUser));
       return loadedUser;
     } catch (e) {
-      console.error("Profile load error:", e);
+      console.error("Erro ao carregar perfil:", e);
       return null;
     }
   }, []);
 
   useEffect(() => {
     let isMounted = true;
-    
     const initializeAuth = async () => {
+      if (!isInitialLoad.current) return;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
-          await loadProfile(
-            session.user.id, 
-            session.user.user_metadata, 
-            session.user.created_at, 
-            session.user.email || ''
-          );
+          await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
           setCurrentPage('dashboard');
+        } else {
+          setUser(null);
+          localStorage.removeItem('moneylab-user-cache');
         }
       } catch (e) {
-        console.error("Auth session check failed");
+        console.error("Erro de inicialização:", e);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          isInitialLoad.current = false;
+        }
       }
     };
-
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
-      
       if (event === 'SIGNED_IN' && session?.user) {
-        setLoading(true);
-        await loadProfile(
-          session.user.id, 
-          session.user.user_metadata, 
-          session.user.created_at, 
-          session.user.email || ''
-        );
+        await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
         setCurrentPage('dashboard');
-        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('moneylab-user-cache');
         setCurrentPage('landing');
       }
     });
-
-    return () => { 
-      isMounted = false; 
-      subscription.unsubscribe(); 
-    };
+    return () => { isMounted = false; subscription.unsubscribe(); };
   }, [loadProfile]);
 
   const handleGainXP = useCallback(async (amount: number) => {
@@ -253,14 +245,13 @@ const App: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8 text-center px-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8">
        <div className="relative w-24 h-24">
          <div className="absolute inset-0 border-4 border-emerald-500/10 rounded-full"></div>
          <div className="absolute inset-0 border-4 border-t-emerald-500 rounded-full animate-spin"></div>
        </div>
-       <div className="space-y-4">
+       <div className="text-center space-y-2">
          <p className="text-emerald-500 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Sincronizando Nucleo Alpha...</p>
-         <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest max-w-[200px] mx-auto opacity-50">Isolando frequências de dados e carregando protocolos de segurança</p>
        </div>
     </div>
   );
@@ -278,7 +269,7 @@ const App: React.FC = () => {
       )}
       <Layout activePage={currentPage} onNavigate={setCurrentPage} user={user} onLogout={() => supabase.auth.signOut()}>
         {currentPage === 'landing' && (
-          <div className="min-h-[calc(100vh-100px)] flex flex-col items-center justify-center p-8 text-center space-y-16">
+          <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center p-8 text-center space-y-16">
             <h1 className="text-7xl md:text-9xl font-black uppercase tracking-tighter leading-none animate-in fade-in slide-in-from-top-8 duration-1000">MONEYLAB<br/><span className="text-gradient">ACADEMY.</span></h1>
             <div className="flex flex-col md:flex-row gap-6 items-center animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               <button onClick={() => setCurrentPage('register')} className="px-12 py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black rounded-[40px] uppercase text-xs cursor-pointer hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">Criar Conta Alpha</button>

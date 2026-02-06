@@ -11,12 +11,14 @@ import { Page, PlanType, User, Module } from './types';
 import { MODULES } from './constants';
 import { CompoundInterestSimulator } from './components/Simulators';
 import { supabase } from './services/supabase';
-import { Key } from 'lucide-react';
+import { getStoredApiKey } from './services/geminiService';
+import { Key, RefreshCw } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBypass, setShowBypass] = useState(false);
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const isMounted = useRef(true);
@@ -29,16 +31,20 @@ const App: React.FC = () => {
   });
 
   const checkApiKeyStatus = useCallback(async () => {
-    // Verifica se a chave está no Vercel (process.env.API_KEY)
-    if (process.env.API_KEY && process.env.API_KEY !== "" && process.env.API_KEY !== "undefined") {
-      setHasApiKey(true);
-      return;
-    }
-    // Caso contrário, tenta o AI Studio
-    if (window.aistudio) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      setHasApiKey(hasKey);
-    } else {
+    try {
+      const key = getStoredApiKey();
+      if (key) {
+        setHasApiKey(true);
+        return;
+      }
+      
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      } else {
+        setHasApiKey(false);
+      }
+    } catch (e) {
       setHasApiKey(false);
     }
   }, []);
@@ -99,8 +105,15 @@ const App: React.FC = () => {
     isMounted.current = true;
     checkApiKeyStatus();
     
-    // Watchdog de 4 segundos para garantir que o app não trave
-    const timer = setTimeout(() => { if (loading) setLoading(false); }, 4000);
+    // Watchdog Timer: Se em 5 segundos não carregar, mostra o botão de bypass
+    const bypassTimer = setTimeout(() => {
+      if (isMounted.current && loading) setShowBypass(true);
+    }, 5000);
+
+    // Hard Timeout: Se em 10 segundos não carregar, força o fechamento do loading
+    const forceTimer = setTimeout(() => {
+      if (isMounted.current && loading) setLoading(false);
+    }, 10000);
 
     const initializeAuth = async () => {
       try {
@@ -109,10 +122,13 @@ const App: React.FC = () => {
           await loadProfile(session.user.id, session.user.user_metadata, session.user.created_at, session.user.email || '');
           setCurrentPage(prev => (['landing', 'login', 'register'].includes(prev) ? 'dashboard' : prev));
         }
+      } catch (e) {
+        console.error("Auth init error:", e);
       } finally {
         if (isMounted.current) setLoading(false);
       }
     };
+    
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -131,14 +147,32 @@ const App: React.FC = () => {
     return () => { 
       isMounted.current = false; 
       subscription.unsubscribe();
-      clearTimeout(timer);
+      clearTimeout(bypassTimer);
+      clearTimeout(forceTimer);
     };
   }, [loadProfile, checkApiKeyStatus]);
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-6">
-       <div className="w-12 h-12 border-4 border-emerald-500/10 border-t-emerald-500 rounded-full animate-spin"></div>
-       <p className="text-emerald-500 font-black text-[10px] uppercase tracking-[0.5em] animate-pulse">Iniciando Protocolo Alpha...</p>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center gap-8 p-6 text-center">
+       <div className="relative">
+         <div className="w-16 h-16 border-4 border-emerald-500/10 border-t-emerald-500 rounded-full animate-spin"></div>
+         <div className="absolute inset-0 flex items-center justify-center">
+           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+         </div>
+       </div>
+       <div className="space-y-2">
+         <p className="text-emerald-500 font-black text-[10px] uppercase tracking-[0.5em] animate-pulse">Iniciando Protocolo Alpha...</p>
+         <p className="text-slate-500 dark:text-slate-600 text-[8px] font-bold uppercase tracking-widest">Sincronizando camadas de inteligência</p>
+       </div>
+
+       {showBypass && (
+         <button 
+           onClick={() => setLoading(false)}
+           className="mt-4 px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-emerald-500 hover:border-emerald-500/50 transition-all animate-in fade-in slide-in-from-bottom-2"
+         >
+           Forçar Entrada no Sistema
+         </button>
+       )}
     </div>
   );
 
@@ -150,9 +184,12 @@ const App: React.FC = () => {
         </div>
         <div className="max-w-md space-y-4">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Sincronização Necessária</h2>
-          <p className="text-slate-400 text-sm font-medium leading-relaxed">Nenhuma chave detectada no servidor Vercel. Conecte sua chave pessoal para ativar as ferramentas de IA.</p>
+          <p className="text-slate-400 text-sm font-medium leading-relaxed">Nenhuma chave detectada. Conecte sua chave pessoal ou vá em Configurações > IA para inserir manualmente.</p>
         </div>
-        <button onClick={handleOpenKeySelector} className="px-12 py-6 bg-amber-500 text-slate-950 font-black rounded-3xl hover:bg-amber-400 transition-all uppercase tracking-widest text-[10px] shadow-2xl active:scale-95">Conectar Chave Alpha</button>
+        <div className="flex flex-col gap-4">
+          <button onClick={handleOpenKeySelector} className="px-12 py-6 bg-emerald-500 text-slate-950 font-black rounded-3xl hover:bg-emerald-400 transition-all uppercase tracking-widest text-[10px] shadow-2xl active:scale-95">Conectar via AI Studio</button>
+          <button onClick={() => setCurrentPage('settings')} className="text-[10px] text-slate-500 font-black uppercase tracking-widest hover:text-white transition-colors">Configurar Manualmente</button>
+        </div>
       </div>
     );
   }
@@ -179,7 +216,14 @@ const App: React.FC = () => {
         {currentPage === 'terminal' && user && <TerminalAlpha />}
         {currentPage === 'simulators' && <CompoundInterestSimulator />}
         {currentPage === 'pricing' && user && <Pricing user={user} onUpgrade={() => {}} />}
-        {currentPage === 'settings' && user && <Settings user={user} onUpdateProfile={async () => {}} theme={theme} onUpdateTheme={setTheme} onNavigate={setCurrentPage} onUpgrade={() => {}} />}
+        {currentPage === 'settings' && user && <Settings user={user} onUpdateProfile={async (upd) => {
+          const { error } = await supabase.from('profiles').update({
+            name: upd.name,
+            bio: upd.bio,
+            photo_url: upd.photoUrl
+          }).eq('id', user.id);
+          if (!error) setUser({ ...user, ...upd });
+        }} theme={theme} onUpdateTheme={setTheme} onNavigate={setCurrentPage} onUpgrade={() => {}} />}
         {currentPage === 'course' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {MODULES.map(mod => (
